@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leaf Health Detection</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 20px;
+        }
+
+        img {
+            max-width: 400px;
+            margin: 20px auto;
+            display: block;
+        }
+
+        button {
+            background: linear-gradient(90deg, #4CAF50, #81C784);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px;
+            transition: background 0.3s ease;
+        }
+
+        button:hover {
+            background: linear-gradient(90deg, #388E3C, #66BB6A);
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        #result {
+            font-size: 18px;
+            margin-top: 20px;
+        }
+
+        /* Hiệu ứng nhấp nháy */
+        @keyframes flash {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        /* Thông báo cảnh báo động */
+        .warning {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(90deg, #FF4C4C, #FF7878);
+            color: white;
+            padding: 15px 30px;
+            font-size: 18px;
+            border-radius: 25px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            animation: slide-in 0.5s ease-out, fade-out 4.5s ease-in;
+        }
+
+        /* Hiệu ứng trượt vào */
+        @keyframes slide-in {
+            from { transform: translateX(-50%) translateY(-20px); opacity: 0; }
+            to { transform: translateX(-50%) translateY(0); opacity: 1; }
+        }
+
+        /* Hiệu ứng mờ dần */
+        @keyframes fade-out {
+            0% { opacity: 1; }
+            80% { opacity: 0.8; }
+            100% { opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <h1>Leaf Health Detection</h1>
+    <button onclick="captureImage()">Capture Image</button>
+    <button onclick="uploadImage()">Upload Image</button>
+    <button onclick="turnOffLed()">Turn_off</button>
+    <button onclick="turnOnLed()">Turn_on</button>
+    <img id="leaf-image" src="static/leaf.jpg" alt="Captured or Uploaded Leaf Image">
+    <p id="result"></p>
+
+    <script>
+     function turnOffLed() {
+       fetch("http://192.168.17.11/led/off", {
+         method: "GET", // Hoặc "POST" nếu cần
+       })
+       .then(response => {
+         if (response.ok) {
+           alert("LED is turned off!");
+         } else {
+           alert("Failed to turn off LED.");
+         }
+       })
+       .catch(error => {
+         console.error("Error:", error);
+         alert("Error occurred while sending the request.");
+       });
+     }
+
+     function turnOnLed() {
+        fetch("http://192.168.17.11/led/on", {
+         method: "GET", // Hoặc "POST" nếu cần
+       })
+       .then(response => {
+         if (response.ok) {
+           alert("LED is turned on!");
+         } else {
+           alert("Failed to turn on LED.");
+         }
+       })
+       .catch(error => {
+         console.error("Error:", error);
+         alert("Error occurred while sending the request.");
+       });
+     }
+
+        
+        function captureImage() {
+            fetch('/capture')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === "success") {
+                        const timestamp = new Date().getTime();
+                        document.getElementById("leaf-image").src = "static/leaf.jpg?timestamp=" + timestamp;
+
+                        // Hiển thị kết quả
+                        const resultElement = document.getElementById("result");
+                        resultElement.innerText = 
+                            `Result: ${data.label} (Confidence: ${data.confidence})`;
+
+                        // Kiểm tra label và thêm hiệu ứng cảnh báo nếu cần
+                        if (data.label === "Pest-infested" || data.label === "Wilted") {
+                            resultElement.style.color = "#FF4C4C"; // Đỏ nổi bật
+                            resultElement.style.fontWeight = "bold";
+                            resultElement.style.animation = "flash 1s infinite"; // Hiệu ứng nhấp nháy
+
+                            // Thêm thông báo cảnh báo động
+                            const warning = document.createElement("div");
+                            warning.className = "warning";
+                            warning.innerText = "⚠️ Warning: Immediate action required!";
+                            document.body.appendChild(warning);
+
+                            setTimeout(() => warning.remove(), 5000); // Xóa cảnh báo sau 5 giây
+                        } else {
+                            resultElement.style.color = "#333"; // Trạng thái bình thường
+                            resultElement.style.fontWeight = "normal";
+                            resultElement.style.animation = "none";
+                        }
+                    } else {
+                        document.getElementById("result").innerText = "Error: " + data.message;
+                    }
+                })
+                .catch(err => console.error(err));
+        }
+
+        function uploadImage() {
+            // Chức năng xử lý tải ảnh từ máy tính
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+
+            input.onchange = (event) => {
+                const file = event.target.files[0];
+                if (file) {
+                    const formData = new FormData();
+                    formData.append('image', file);
+
+                    fetch('/upload', {
+                        method: 'POST',
+                        body: formData
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.status === "success") {
+                                const timestamp = new Date().getTime();
+                                document.getElementById("leaf-image").src = "static/leaf.jpg?timestamp=" + timestamp;
+
+                                const resultElement = document.getElementById("result");
+                                resultElement.innerText = 
+                                    `Result: ${data.label} (Confidence: ${data.confidence})`;
+
+                                if (data.label === "Tomato_Target_Spot" || data.label === "Tomato__healthy") {
+                                    resultElement.style.color = "#FF4C4C";
+                                    resultElement.style.fontWeight = "bold";
+                                    resultElement.style.animation = "flash 1s infinite";
+
+                                    const warning = document.createElement("div");
+                                    warning.className = "warning";
+                                    warning.innerText = "⚠️ Warning: Immediate action required!";
+                                    document.body.appendChild(warning);
+
+                                    setTimeout(() => warning.remove(), 5000);
+                                } else {
+                                    resultElement.style.color = "#333";
+                                    resultElement.style.fontWeight = "normal";
+                                    resultElement.style.animation = "none";
+                                }
+                            } else {
+                                document.getElementById("result").innerText = "Error: " + data.message;
+                            }
+                        })
+                        .catch(err => console.error(err));
+                }
+            };
+
+            input.click();
+        }
+    </script>
+</body>
+</html>

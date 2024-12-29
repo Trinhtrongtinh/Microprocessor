@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leaf Health Detection</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+
+        h1 {
+            color: #2E7D32;
+        }
+
+        img {
+            max-width: 400px;
+            margin: 20px auto;
+            display: block;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        button {
+            background: linear-gradient(90deg, #4CAF50, #81C784);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 25px;
+            cursor: pointer;
+            margin: 10px;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        button:hover {
+            background: linear-gradient(90deg, #388E3C, #66BB6A);
+            transform: translateY(-2px);
+        }
+
+        #result {
+            font-size: 18px;
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            background: white;
+            display: inline-block;
+        }
+
+        .warning {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(90deg, #FF4C4C, #FF7878);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            z-index: 1000;
+            max-width: 400px;
+            animation: slide-in 0.5s ease-out;
+        }
+
+        .warning-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .solutions {
+            text-align: left;
+            margin-top: 10px;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        @keyframes slide-in {
+            from { transform: translateX(-50%) translateY(-20px); opacity: 0; }
+            to { transform: translateX(-50%) translateY(0); opacity: 1; }
+        }
+
+        @keyframes flash {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <h1>Leaf Health Detection</h1>
+    <button onclick="captureImage()">Capture Image</button>
+    <button onclick="uploadImage()">Upload Image</button>
+    <button onclick="turnOffLed()">Turn Off LED</button>
+    <button onclick="turnOnLed()">Turn On LED</button>
+    <img id="leaf-image" src="static/leaf.jpg" alt="Leaf Image">
+    <p id="result">No analysis yet</p>
+
+    <script>
+        const diseaseSolutions = {
+            "Tomato__BacteriaL_spot": {
+                warning: "Bacterial Spot Detected!",
+                solutions: [
+                    "Remove and destroy infected plants",
+                    "Apply copper-based fungicides",
+                    "Maintain proper plant spacing",
+                    "Avoid overhead watering"
+                ]
+            },
+            "Tomato_Early_blight": {
+                warning: "Early Blight Detected!",
+                solutions: [
+                    "Remove infected leaves",
+                    "Apply fungicide",
+                    "Improve air circulation",
+                    "Mulch around plants"
+                ]
+            },
+            "Tomato_Late_blight": {
+                warning: "Late Blight Detected!",
+                solutions: [
+                    "Remove infected plants",
+                    "Apply protective fungicide",
+                    "Avoid overhead irrigation",
+                    "Increase plant spacing"
+                ]
+            },
+            // Add other diseases...
+        };
+
+        function showWarning(label, confidence) {
+            const resultElement = document.getElementById("result");
+            resultElement.innerText = `Result: ${label} (Confidence: ${confidence})`;
+
+            if (label !== "Tomato__healthy") {
+                resultElement.style.color = "#FF4C4C";
+                const disease = diseaseSolutions[label];
+                
+                const warning = document.createElement("div");
+                warning.className = "warning";
+                warning.innerHTML = `
+                    <div class="warning-title">⚠️ ${disease?.warning || "Disease Detected!"}</div>
+                    <div class="solutions">
+                        ${disease?.solutions.map(s => `• ${s}`).join('<br>') || 'Consult a plant specialist'}
+                    </div>
+                `;
+                document.body.appendChild(warning);
+                setTimeout(() => warning.remove(), 8000);
+            } else {
+                resultElement.style.color = "#4CAF50";
+            }
+        }
+
+        // Your existing turnOffLed and turnOnLed functions here...
+
+        function captureImage() {
+            fetch('/capture')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === "success") {
+                        document.getElementById("leaf-image").src = 
+                            `static/leaf.jpg?timestamp=${new Date().getTime()}`;
+                        showWarning(data.label, data.confidence);
+                    }
+                })
+                .catch(err => console.error(err));
+        }
+
+        function uploadImage() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.onchange = (event) => {
+                const file = event.target.files[0];
+                if (file) {
+                    const formData = new FormData();
+                    formData.append('image', file);
+                    fetch('/upload', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === "success") {
+                            document.getElementById("leaf-image").src = 
+                                `static/leaf.jpg?timestamp=${new Date().getTime()}`;
+                            showWarning(data.label, data.confidence);
+                        }
+                    })
+                    .catch(err => console.error(err));
+                }
+            };
+            input.click();
+        }
+    </script>
+</body>
+</html>
